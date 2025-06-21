@@ -18,4 +18,19 @@ program
 .option('-f')
 .action(() =>{ console.log('Hello User, Welcome to the CLI');});
 
-program.parse();
+program
+.name('add snippet <name>')
+.description('Add your code snippet in the language of your choice')
+.option('-l,--lang<language>','specify the programming language')
+.option('-d,--desc<description>','describe the code snippet')
+.option('-f,--file<path>','Path to the file containting the snippet')
+.option('--tags <tags>', 'Comma-separated tags', val => val.split(','))
+.action((name,option) =>{ 
+    console.log('Name: ',name);
+    console.log('Language: ', option.lang);
+    console.log('Description: ', option.desc);
+    console.log('File Path: ', option.file);
+    console.log('Tags: ', option.tags);
+});
+
+program.parse(process.argvs);
