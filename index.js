@@ -2,8 +2,9 @@
 
 import { Command } from 'commander';
 import readline from 'readline'; 
-import fs from 'fs';
+import fs, { read } from 'fs';
 import path, { resolve } from 'path';
+import clipboardy from 'clipboardy';
 import { json } from 'stream/consumers';
 // const {PrismaClient}=require(`@prisma/client`);
 const DATA_FILE=path.resolve('./snippet.json');
@@ -50,13 +51,21 @@ program
   .option(`-f, --file <path>`, `Path to the file containing the snippet`)
   .option(`--tags <tags>`, `Comma-separated tags`, val => val.split(`,`))
   .action((name, options) => {
-    console.log(`Name:`, name);
-    console.log(`Language:`, options.lang);
-    console.log(`Description:`, options.desc);
-    console.log(`File Path:`, options.file);
-    console.log(`Tags:`, options.tags);
-  });
+  const snippets = loadSnippets();
 
+  const newSnippet = {
+    name,
+    lang: options.lang || '',
+    desc: options.desc || '',
+    file: options.file || '',
+    tags: options.tags || [],
+  };
+
+  snippets.push(newSnippet);
+  savedSnippets(snippets);
+
+  console.log(` Snippet "${name}" saved successfully.`);
+});
 
 //delete snippet
 program
@@ -104,7 +113,7 @@ program
 .option(`-l, --lang <language>`, `New programming language`)
 .option(`-d, --desc <description>`, `New description`)
 .option(`-f, --file <path>`, `Path to the file to overwrite`) // ✅ Fix is here
-.option(`--tags <tags>`, `New comma-separated tags`, val => val.split(`,`))
+ .option(`--tags <tags>`, `New comma-separated tags`, val => val.split(`,`))
 .action((name, options) => {
     if (!options.file) {
       console.error(`Please provide the file path using -f or --file`);
@@ -155,5 +164,74 @@ snippets.forEach((snip,index) =>{
 });
 
 
-//view snippet pending
+//view snippet
+program
+.command('view-snippet <name>')
+.description('view specific snippets')
+.action((name)=>{
+  const snippets= loadSnippets();
+  const snippet=snippets.find(s=>s.name===name);
+
+  if(!snippet){
+    console.log(`ERROR! snippets not found`);
+    process.exit(1);
+  }
+
+  console.log(`\n Snippet details:`);
+  console.log(`Snippet Name: ${snippet.name}`);
+  console.log(`Snippet Language: ${snippet.lang}`);
+  console.log(`Snippet Description: ${snippet.desc}`);
+  console.log(`Snippet Path: ${snippet.file}`);
+  console.log(`Snippet Tags: ${snippet.tags?.join(',')||'None'}`);
+  console.log(`\n Code:`);
+
+  //read and display code
+  const filePath=path.resolve(snippet.file);
+  if(!fs.existsSync(filePath)){
+       console.log(`ERROR! File path  ${filePath} not found`);
+    process.exit(1);
+  }
+  const code= fs.readFileSync(filePath,'utf-8');
+  console.log(code);
+
+  //reading the snippet and storing it
+  const rl =readline.createInterface({
+    input:process.stdin,
+    output:process.stdout
+  })
+  //ask cli user to copy code to clipbaord (y/n options)
+  rl.question(`do you want to copy the snippet to your cli? (y/n): `,answer =>{
+    if(answer.toLowerCase==='y'){
+      clipboardy.writeSync(code);
+      console.log(`The snippet ${name} has been copied to your clipboard`);
+    }else{
+      console.log(`The snippet ${name} has not been copied to your clipboard. exiting view snippet mode.`);
+    }
+    rl.close();
+  })
+});
+
+//search snippet
+// program
+// .command('search-snippet')
+// .description('search for the snippet you are looking for on the basis of language,keywords and tags')
+// .option('-l,--lang<language>','Filter on the basis of programming language')
+// .option('-k,--key<keyword>','Filter on the basis of keywords used')
+// .option(`--tags <tags>`, `New comma-separated tags`, val => val.split(`,`))
+
+// action((options)=>{
+//   const snippets=loadSnippets;
+//   const matches=snippets.filter(snippet=>{
+//     const matchlang =options.lang? options.lang===snippet.lang:true;
+//     const matchtag =options.tag?snippet.tag?.includes(options.tag):true;
+//     const matchkey=options.keywords?fs.readFileSync(path.resolve(filePath),'utf-8').includes(options.keywords):true;
+
+//     return matchlang && matchtag && matchkey;
+//   });
+//   if(!matches.length) return console.log("Snippet not found");
+//   matches.forEach((s,i)=>{
+//     console.log(`\n ${s+1}.${name}[${s.lang}]`);
+//     console.log(`Tags: `);
+//   })
+// })
 program.parse(process.argv);
