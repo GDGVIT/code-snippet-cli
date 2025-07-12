@@ -18,7 +18,19 @@ function loadSnippets(){
     return[];
   }
   const data =fs.readFileSync(DATA_FILE,'utf-8');
-  return JSON.parse(data);
+
+  try{
+    const parsed =JSON.parse(data);
+    if(Array.isArray(parsed)){
+      return parsed;
+    }else{
+      console.log(`Snippet DB is not an array`);
+      return[];
+    }
+  }catch(err){
+    console.error(`JSON not passed error`.err.message);
+    return[];
+  }
 }
 
 //save snippets to JSON file
@@ -201,7 +213,7 @@ program
   })
   //ask cli user to copy code to clipbaord (y/n options)
   rl.question(`do you want to copy the snippet to your cli? (y/n): `,answer =>{
-    if(answer.toLowerCase==='y'){
+    if(answer.toLowerCase()==='y'){
       clipboardy.writeSync(code);
       console.log(`The snippet ${name} has been copied to your clipboard`);
     }else{
@@ -211,27 +223,29 @@ program
   })
 });
 
-//search snippet
-// program
-// .command('search-snippet')
-// .description('search for the snippet you are looking for on the basis of language,keywords and tags')
-// .option('-l,--lang<language>','Filter on the basis of programming language')
-// .option('-k,--key<keyword>','Filter on the basis of keywords used')
-// .option(`--tags <tags>`, `New comma-separated tags`, val => val.split(`,`))
+// search snippet
+program
+.command('search-snippet')
+.description('search for the snippet you are looking for on the basis of language,keywords and tags')
+.option('-l,--lang<language>','Filter on the basis of programming language')
+.option('-k,--key<keyword>','Filter on the basis of keywords used')
+.option(`--tags <tags>`, `New comma-separated tags`, val => val.split(`,`))
 
-// action((options)=>{
-//   const snippets=loadSnippets;
-//   const matches=snippets.filter(snippet=>{
-//     const matchlang =options.lang? options.lang===snippet.lang:true;
-//     const matchtag =options.tag?snippet.tag?.includes(options.tag):true;
-//     const matchkey=options.keywords?fs.readFileSync(path.resolve(filePath),'utf-8').includes(options.keywords):true;
+.action((options)=>{
+  const snippets=loadSnippets();
+  const matches=snippets.filter(snippet=>{
+    const matchlang =options.lang? options.lang===snippet.lang:true;
+    const matchtag =options.tag?snippet.tag?.includes(options.tag):true;
+    const matchkey=options.keywords?fs.readFileSync(path.resolve(filePath),'utf-8').includes(options.keywords):true;
 
-//     return matchlang && matchtag && matchkey;
-//   });
-//   if(!matches.length) return console.log("Snippet not found");
-//   matches.forEach((s,i)=>{
-//     console.log(`\n ${s+1}.${name}[${s.lang}]`);
-//     console.log(`Tags: `);
-//   })
-// })
+    return matchlang && matchtag && matchkey;
+  });
+  if(!matches.length) return console.log("Snippet not found");
+  matches.forEach((s,i)=>{
+    console.log(`\n ${i+1}. ${s.name}[${s.lang}]`);
+    console.log(`Tags: ${snippets.tags?.join(', ')}`);
+    console.log(`File: ${s.file}`);
+    console.log('-----------------------------');
+  })
+})
 program.parse(process.argv);
