@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-
 import { Command } from 'commander';
 import readline from 'readline'; 
 import fs, { read } from 'fs';
 import path, { resolve } from 'path';
 import clipboardy from 'clipboardy';
 import { json } from 'stream/consumers';
+import Fuse from 'fuse.js';
 // const {PrismaClient}=require(`@prisma/client`);
 const DATA_FILE=path.resolve('./snippet.json');
 
@@ -223,7 +223,33 @@ program
   })
 });
 
-// search snippet
+// search snippet (OLDER)
+// program
+// .command('search-snippet')
+// .description('search for the snippet you are looking for on the basis of language,keywords and tags')
+// .option('-l,--lang<language>','Filter on the basis of programming language')
+// .option('-k,--key<keyword>','Filter on the basis of keywords used')
+// .option(`--tags <tags>`, `New comma-separated tags`, val => val.split(`,`))
+
+// .action((options)=>{
+//   const snippets=loadSnippets();
+//   const matches=snippets.filter(snippet=>{
+//     const matchlang =options.lang? options.lang===snippet.lang:true;
+//     const matchtag =options.tag?snippet.tag?.includes(options.tag):true;
+//     const matchkey=options.keywords?fs.readFileSync(path.resolve(filePath),'utf-8').includes(options.keywords):true;
+
+//     return matchlang && matchtag && matchkey;
+//   });
+//   if(!matches.length) return console.log("Snippet not found");
+//   matches.forEach((s,i)=>{
+//     console.log(`\n ${i+1}. ${s.name}[${s.lang}]`);
+//     console.log(`Tags: ${snippets.tags?.join(', ')}`);
+//     console.log(`File: ${s.file}`);
+//     console.log('-----------------------------');
+//   })
+// })
+
+//Search snippet FUZZY 
 program
 .command('search-snippet')
 .description('search for the snippet you are looking for on the basis of language,keywords and tags')
