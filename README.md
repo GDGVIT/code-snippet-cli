@@ -2,8 +2,9 @@
 <a href="https://dscvit.com">
 	<img width="400" src="https://user-images.githubusercontent.com/56252312/159312411-58410727-3933-4224-b43e-4e9b627838a3.png#gh-light-mode-only" alt="GDSC VIT"/>
 </a>
-	<h2 align="center"> < Insert Project Title Here > </h2>
-	<h4 align="center"> < Insert Project Description Here > <h4>
+	<h2 align="center"> < Code SnippeT CLI> </h2>
+	<h4 align="center"> < This project is a custom **Command Line Interface (CLI) tool** for managing code snippets efficiently. It allows users to **add, view, search, and copy snippets** categorized by language, tags, or keywords. The tool supports fuzzy search and integrates with **Prisma + PostgreSQL** for persistent storage. Designed for developers, it streamlines snippet reuse and organization directly from the terminal.
+> <h4>
 </p>
 
 ---
@@ -15,38 +16,87 @@
 
 
 ## Features
-- [ ]  < feature >
-- [ ]  < feature >
-- [ ]  < feature >
-- [ ]  < feature >
+- [ ]  < Add & Store Snippets – Save code snippets with metadata like name, language, tags, and file path. >
+- [ ]  < Search & Fuzzy Matching – Find snippets using exact or partial keyword, language, or tag matches. >
+- [ ]  < Clipboard Integration – View snippets and instantly copy them to your clipboard for quick reuse.>
+- [ ]  < Persistent Storage with Prisma + PostgreSQL – Store and retrieve snippets from a reliable database backend.>
 
 <br>
 
-## Dependencies
- - < dependency >
- - < dependency >
+Sure! Here’s a clean and professional version of your `README.md` section:
 
+---
 
-## Running
+## 🧩 Dependencies
 
+* `commander` – for creating CLI commands
+* `clipboardy` – to copy snippets to the clipboard
+* `fuse.js` – enables fuzzy search functionality
+* `inquirer` – for interactive prompts
+* `chalk` – for colorful terminal output
+* `dotenv` – to manage environment variables
+* `@prisma/client` – Prisma’s runtime client for database access
+* `prisma` – Prisma CLI for DB setup and migrations (`devDependency`)
+* `pg` – PostgreSQL client for Node.js
 
-< directions to install > 
+---
+
+## 🚀 Running the Project
+
+### 🔧 Install Dependencies
+
 ```bash
-< insert code >
+npm install
+npm install -D prisma
+npm install pg
 ```
 
-< directions to execute >
+### ⚙️ Initialize Prisma
 
 ```bash
-< insert code >
+npx prisma init
 ```
+
+Edit the `.env` file to point to your PostgreSQL database:
+
+```
+DATABASE_URL="postgresql://username:password@localhost:5432/your-db-name"
+```
+
+### 🗂️ Run Migrations (optional, if schema is defined)
+
+```bash
+npx prisma migrate dev --name init
+```
+
+---
+
+## ▶️ Execute CLI
+
+### Example usage:
+
+```bash
+node index.js add-snippet
+node index.js search-snippet -l javascript
+node index.js view-snippet -n "Binary Search"
+```
+
+If you're using an alias (like `mycli`), then:
+
+```bash
+mycli add-snippet
+mycli search-snippet -l python
+```
+
+---
+
 
 ## Contributors
 
 <table>
 	<tr align="center">
 		<td>
-		John Doe
+		Samridh Suresh
 		<p align="center">
 			<img src = "https://dscvit.com/images/dsc-logo-square.svg" width="150" height="150" alt="Your Name Here (Insert Your Image Link In Src">
 		</p>
