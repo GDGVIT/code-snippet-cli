@@ -1,289 +1,189 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import fs from "fs";
+import path from "path";
 import readline from "readline";
-import fs, { read } from "fs";
-import path, { resolve } from "path";
 import clipboardy from "clipboardy";
-import { json } from "stream/consumers";
-import Fuse from "fuse.js";
-// const {PrismaClient}=require(`@prisma/client`);
-const DATA_FILE = path.resolve("./snippet.json");
+import prisma from "./lib/prisma.js";
 
 const program = new Command();
 
-//for loading snippet from JSON file
-function loadSnippets() {
-  if (!fs.existsSync(DATA_FILE)) {
-    return [];
-  }
-  const data = fs.readFileSync(DATA_FILE, "utf-8");
-
-  try {
-    const parsed = JSON.parse(data);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    } else {
-      console.log(`Snippet DB is not an array`);
-      return [];
-    }
-  } catch (err) {
-    console.error(`JSON not passed error`.err.message);
-    return [];
-  }
-}
-
-//save snippets to JSON file
-function savedSnippets(snippets) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(snippets, null, 2), "utf-8");
-}
-
-//cli code starts here
 program
   .name("snippet-cli")
   .description("My Code Snippet CLI program")
   .version("1.0.0");
 
-//greeting snippet
+// Add snippet
 program
-  .command(`hi <name>`)
-  .description(`Says hi to the user`)
-  .action((name) => {
-    console.log(
-      `Hello ${name}, Welcome to the CLI: what are we here for today:`
-    );
-  });
-
-//add snippet
-program
-  .command(`add-snippet <name>`)
-  .description(`Add your code snippet in the language of your choice`)
-  .option(`-l, --lang <language>`, `Specify the programming language`)
-  .option(`-d, --desc <description>`, `Describe the code snippet`)
-  .option(`-f, --file <path>`, `Path to the file containing the snippet`)
-  .option(`--tags <tags>`, `Comma-separated tags`, (val) => val.split(`,`))
-  .action((name, options) => {
-    const snippets = loadSnippets();
-
-    const newSnippet = {
-      name,
-      lang: options.lang || "",
-      desc: options.desc || "",
-      file: options.file || "",
-      tags: options.tags || [],
-    };
-
-    snippets.push(newSnippet);
-    savedSnippets(snippets);
-
-    console.log(` Snippet "${name}" saved successfully.`);
-  });
-
-//delete snippet
-program
-  .command(`delete-snippet <name>`)
-  .description(`Delete the snippet that you would like to discard`)
-  .option(`-f, --file <path>`, `Path to the file containing the snippet`)
-  .action((name, options) => {
-    if (!options.file) {
-      console.error(`Please provide a file path using -f or --file`);
-      process.exit(1);
-    }
-
-    const filePath = path.resolve(options.file);
-
-    // Confirm with user before deleting
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    rl.question(
-      `Are you sure you want to delete "${name}" at ${filePath}? (y/n): `,
-      (answer) => {
-        rl.close();
-
-        if (answer.toLowerCase() === `y` || answer.toLowerCase() === `yes`) {
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              console.error(`Failed to delete file: ${filePath}`);
-              console.error(err.message);
-            } else {
-              console.log(`Snippet "${name}" deleted from ${filePath}`);
-            }
-          });
-        } else {
-          console.log(`Deletion cancelled.`);
-        }
+  .command("add-snippet <name>")
+  .description("Add a code snippet")
+  .option("-l, --lang <language>", "Programming language")
+  .option("-d, --desc <description>", "Snippet description")
+  .option("-f, --file <path>", "Path to the file containing the snippet")
+  .option("--tags <tags>", "Comma-separated tags", (val) => val.split(","))
+  .action(async (name, options) => {
+    try {
+      if (!options.file || !fs.existsSync(options.file)) {
+        console.error("❌ File path is required and must exist.");
+        process.exit(1);
       }
-    );
+
+      const code = fs.readFileSync(options.file, "utf-8");
+
+      await prisma.snippet.create({
+        data: {
+          name,
+          lang: options.lang || "",
+          desc: options.desc || "",
+          file: options.file,
+          tags: options.tags || [],
+          code,
+        },
+      });
+
+      console.log(`✅ Snippet "${name}" saved to DB.`);
+    } catch (err) {
+      console.error(`❌ Failed to save snippet: ${err.message}`);
+    }
   });
 
-//edit-snippet
+// Delete snippet
 program
-  .command(`edit-snippet <name>`)
-  .description(`Edit an existing snippet`)
-  .option(`-l, --lang <language>`, `New programming language`)
-  .option(`-d, --desc <description>`, `New description`)
-  .option(`-f, --file <path>`, `Path to the file to overwrite`) // ✅ Fix is here
-  .option(`--tags <tags>`, `New comma-separated tags`, (val) => val.split(`,`))
-  .action((name, options) => {
-    if (!options.file) {
-      console.error(`Please provide the file path using -f or --file`);
-      process.exit(1);
+  .command("delete-snippet <name>")
+  .description("Delete a snippet from the database")
+  .action(async (name) => {
+    try {
+      await prisma.snippet.delete({
+        where: { name },
+      });
+      console.log(`🗑️ Snippet "${name}" deleted.`);
+    } catch (err) {
+      console.error(`❌ Failed to delete: ${err.message}`);
     }
-
-    const filePath = path.resolve(options.file);
-
-    if (!fs.existsSync(filePath)) {
-      console.error(`File not found: ${filePath}`);
-      process.exit(1);
-    }
-
-    console.log(`Editing snippet "${name}" at ${filePath}`);
-
-    if (options.lang) {
-      console.log(`Language updated to: ${options.lang}`);
-    }
-    if (options.desc) {
-      console.log(`Description updated to: ${options.desc}`);
-    }
-    if (options.tags) {
-      console.log(`Tags updated to: ${options.tags.join(`, `)}`);
-    }
-
-    console.log(
-      ` Edit command completed (metadata displayed, file not changed)`
-    );
   });
 
-//list snippet
+// Edit snippet
 program
-  .command(`list-snippet`)
-  .description(`List all your snippets`)
-  .action(() => {
-    const snippets = loadSnippets();
+  .command("edit-snippet <name>")
+  .description("Edit an existing snippet")
+  .option("-l, --lang <language>", "New programming language")
+  .option("-d, --desc <description>", "New description")
+  .option("-f, --file <path>", "New file path")
+  .option("--tags <tags>", "New comma-separated tags", (val) => val.split(","))
+  .action(async (name, options) => {
+    try {
+      const updates = {};
+
+      if (options.lang) updates.lang = options.lang;
+      if (options.desc) updates.desc = options.desc;
+      if (options.tags) updates.tags = options.tags;
+
+      if (options.file) {
+        if (!fs.existsSync(options.file)) {
+          console.error("❌ Provided file does not exist.");
+          process.exit(1);
+        }
+        updates.file = options.file;
+        updates.code = fs.readFileSync(options.file, "utf-8");
+      }
+
+      await prisma.snippet.update({
+        where: { name },
+        data: updates,
+      });
+
+      console.log(`✏️ Snippet "${name}" updated.`);
+    } catch (err) {
+      console.error(`❌ Failed to update: ${err.message}`);
+    }
+  });
+
+// List snippets
+program
+  .command("list-snippet")
+  .description("List all snippets")
+  .action(async () => {
+    const snippets = await prisma.snippet.findMany();
+
     if (snippets.length === 0) {
-      console.log(`No snippets saved yet`);
+      console.log("📭 No snippets found.");
       return;
     }
-    console.log(`Saved snippets`);
-    snippets.forEach((snip, index) => {
-      console.log(`Snippet- ${index + 1}`);
-      console.log(` Name: ${snip.name}`);
-      console.log(`language: ${snip.lang}`);
-      console.log(`Description: ${snip.desc}`);
-      console.log(`File path: ${snip.filepath}`);
-      console.log(`Tags: ${snip.tags?.join(`, `)}`);
+
+    snippets.forEach((s, i) => {
+      console.log(`\n${i + 1}. ${s.name} [${s.lang}]`);
+      console.log(`📄 ${s.desc}`);
+      console.log(`📁 ${s.file}`);
+      console.log(`🏷️ ${s.tags?.join(", ")}`);
     });
   });
 
-//view snippet
+// View a snippet
 program
   .command("view-snippet <name>")
-  .description("view specific snippets")
-  .action((name) => {
-    const snippets = loadSnippets();
-    const snippet = snippets.find((s) => s.name === name);
+  .description("View a specific snippet")
+  .action(async (name) => {
+    const snippet = await prisma.snippet.findUnique({ where: { name } });
 
     if (!snippet) {
-      console.log(`ERROR! snippets not found`);
-      process.exit(1);
+      console.log("❌ Snippet not found.");
+      return;
     }
 
-    console.log(`\n Snippet details:`);
-    console.log(`Snippet Name: ${snippet.name}`);
-    console.log(`Snippet Language: ${snippet.lang}`);
-    console.log(`Snippet Description: ${snippet.desc}`);
-    console.log(`Snippet Path: ${snippet.file}`);
-    console.log(`Snippet Tags: ${snippet.tags?.join(",") || "None"}`);
-    console.log(`\n Code:`);
+    console.log(`\n📌 Name: ${snippet.name}`);
+    console.log(`🖋️ Language: ${snippet.lang}`);
+    console.log(`📝 Description: ${snippet.desc}`);
+    console.log(`📁 File: ${snippet.file}`);
+    console.log(`🏷️ Tags: ${snippet.tags?.join(", ")}`);
+    console.log(`\n📄 Code:\n${snippet.code}`);
 
-    //read and display code
-    const filePath = path.resolve(snippet.file);
-    if (!fs.existsSync(filePath)) {
-      console.log(`ERROR! File path  ${filePath} not found`);
-      process.exit(1);
-    }
-    const code = fs.readFileSync(filePath, "utf-8");
-    console.log(code);
-
-    //reading the snippet and storing it
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
-    //ask cli user to copy code to clipbaord (y/n options)
-    rl.question(
-      `do you want to copy the snippet to your cli? (y/n): `,
-      (answer) => {
-        if (answer.toLowerCase() === "y") {
-          clipboardy.writeSync(code);
-          console.log(`The snippet ${name} has been copied to your clipboard`);
-        } else {
-          console.log(
-            `The snippet ${name} has not been copied to your clipboard. exiting view snippet mode.`
-          );
-        }
-        rl.close();
+
+    rl.question("📋 Copy to clipboard? (y/n): ", (answer) => {
+      if (answer.toLowerCase() === "y") {
+        clipboardy.writeSync(snippet.code);
+        console.log("✅ Copied to clipboard.");
       }
-    );
+      rl.close();
+    });
   });
 
-// search snippet (OLDER)
-// program
-// .command('search-snippet')
-// .description('search for the snippet you are looking for on the basis of language,keywords and tags')
-// .option('-l,--lang<language>','Filter on the basis of programming language')
-// .option('-k,--key<keyword>','Filter on the basis of keywords used')
-// .option(`--tags <tags>`, `New comma-separated tags`, val => val.split(`,`))
-
-// .action((options)=>{
-//   const snippets=loadSnippets();
-//   const matches=snippets.filter(snippet=>{
-//     const matchlang =options.lang? options.lang===snippet.lang:true;
-//     const matchtag =options.tag?snippet.tag?.includes(options.tag):true;
-//     const matchkey=options.keywords?fs.readFileSync(path.resolve(filePath),'utf-8').includes(options.keywords):true;
-
-//     return matchlang && matchtag && matchkey;
-//   });
-//   if(!matches.length) return console.log("Snippet not found");
-//   matches.forEach((s,i)=>{
-//     console.log(`\n ${i+1}. ${s.name}[${s.lang}]`);
-//     console.log(`Tags: ${snippets.tags?.join(', ')}`);
-//     console.log(`File: ${s.file}`);
-//     console.log('-----------------------------');
-//   })
-// })
-
-//Search snippet FUZZY
+// Search snippet (basic)
 program
   .command("search-snippet")
-  .description(
-    "search for the snippet you are looking for on the basis of language,keywords and tags"
-  )
-  .option("-l,--lang<language>", "Filter on the basis of programming language")
-  .option("-k,--key<keyword>", "Filter on the basis of keywords used")
-  .option(`--tags <tags>`, `New comma-separated tags`, (val) => val.split(`,`))
+  .description("Search snippets by keyword or tag")
+  .option("-k, --key <keyword>", "Search in name/desc/code")
+  .option("--tag <tag>", "Search by tag")
+  .action(async (options) => {
+    const snippets = await prisma.snippet.findMany();
 
-  .action((options) => {
-    const snippets = loadSnippets();
-    const matches = snippets.filter((snippet) => {
-      const matchlang = options.lang ? options.lang === snippet.lang : true;
-      const matchtag = options.tag ? snippet.tag?.includes(options.tag) : true;
-      const matchkey = options.keywords
-        ? fs
-            .readFileSync(path.resolve(filePath), "utf-8")
-            .includes(options.keywords)
+    const results = snippets.filter((s) => {
+      const keywordMatch = options.key
+        ? [s.name, s.desc, s.code].some((field) =>
+            field?.toLowerCase().includes(options.key.toLowerCase())
+          )
         : true;
 
-      return matchlang && matchtag && matchkey;
+      const tagMatch = options.tag
+        ? s.tags?.includes(options.tag)
+        : true;
+
+      return keywordMatch && tagMatch;
     });
-    if (!matches.length) return console.log("Snippet not found");
-    matches.forEach((s, i) => {
-      console.log(`\n ${i + 1}. ${s.name}[${s.lang}]`);
-      console.log(`Tags: ${snippets.tags?.join(", ")}`);
+
+    if (!results.length) {
+      console.log("🔍 No matching snippets.");
+      return;
+    }
+
+    results.forEach((s, i) => {
+      console.log(`\n${i + 1}. ${s.name} [${s.lang}]`);
+      console.log(`Tags: ${s.tags?.join(", ")}`);
       console.log(`File: ${s.file}`);
-      console.log("-----------------------------");
     });
   });
+
 program.parse(process.argv);
